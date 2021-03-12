@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES5",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "allowUmdGlobalAccess": true,
+    "allowSyntheticDefaultImports": true,
+    "useDefineForClassFields": false,
+    "experimentalDecorators": true,
+    "strict": true,
+    "downlevelIteration": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "outDir": "dist"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

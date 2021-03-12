@@ -1,0 +1,47 @@
+{
+  "name": "@mntm/graphql-codegen",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "jsnext:main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "author": {
+    "name": "Anton Petrov",
+    "email": "im@petrov.engineer",
+    "url": "https://petrov.engineer"
+  },
+  "description": "Plugin for GraphQL Code Generator",
+  "license": "MIT",
+  "keywords": [
+    "graphql-client",
+    "graphql",
+    "graphql-clients",
+    "fetch"
+  ],
+  "homepage": "https://github.com/maxi-team/graphql-codegen",
+  "bugs": "https://github.com/maxi-team/graphql-codegen/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maxi-team/graphql-codegen.git"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@graphql-codegen/plugin-helpers": "^1.18.3",
+    "@graphql-codegen/visitor-plugin-common": "^1.19.0",
+    "auto-bind": "~4.0.0",
+    "change-case-all": "^1.0.12",
+    "tslib": "~2.1.0"
+  },
+  "peerDependencies": {
+    "graphql": "^15.5.0"
+  },
+  "devDependencies": {
+    "@mntm/eslint-config": "^0.2.0",
+    "@types/graphql": "^14.5.0",
+    "@types/node": "^14.14.34",
+    "eslint": "^7.21.0",
+    "typescript": "^4.2.3"
+  }
+}
