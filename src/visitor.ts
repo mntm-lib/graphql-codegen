@@ -21,15 +21,18 @@ import {
 } from 'auto-bind';
 
 import {
-  pascalCase
-} from 'change-case-all';
+  default as pascalCase
+} from 'pascalcase';
 
 export type MNTMGraphQLPluginConfig = ClientSideBasePluginConfig;
 
 export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPluginConfig, MNTMGraphQLPluginConfig> {
+  _pureComment: string;
+
   constructor(schema: GraphQLSchema, fragments: LoadedFragment[], rawConfig: MNTMGraphQLRawPluginConfig) {
     super(schema, fragments, rawConfig, {});
     autoBind(this);
+    this._pureComment = rawConfig.pureMagicComment ? '/*#__PURE__*/' : '';
   }
 
   public getImports(): string[] {
@@ -48,26 +51,28 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
 
   private _buildHooks(
     node: OperationDefinitionNode,
-    operationType: string,
+    rawOperationType: string,
     documentVariableName: string,
     operationResultType: string,
     operationVariablesTypes: string
   ): string {
+    const operationType = pascalCase(rawOperationType);
+
     const operationName: string = this.convertName(node.name?.value ?? '', {
-      suffix: this.config.omitOperationSuffix ? '' : pascalCase(operationType),
+      suffix: this.config.omitOperationSuffix ? '' : operationType,
       useTypesPrefix: false
     });
 
     if (operationType === 'Mutation') {
       return `
-export function use${operationName}() {
+export const use${operationName} = ${this._pureComment}() => {
   return useLazyQuery<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName});
 };`;
     }
 
     if (operationType === 'Query') {
       return `
-export function use${operationName}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) {
+export const use${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => {
   return useQuery<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName}, variables);
 };`;
     }

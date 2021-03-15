@@ -49,6 +49,7 @@ export const plugin: PluginFunction<MNTMGraphQLRawPluginConfig, Types.ComplexPlu
     ),
     ...(config.externalFragments || [])
   ];
+
   const visitor = new MNTMGraphQLVisitor(schema, allFragments, config) as any;
   const visitorResult = visit(allAst, { leave: visitor });
 
@@ -67,6 +68,10 @@ export const validate: PluginValidateFn = async (
   const ext = extname(outputFile);
   if (ext !== '.ts' && ext !== '.tsx') {
     throw new Error(`Plugin "@mntm/graphql-codegen" requires extension to be ".ts" or ".tsx"!`);
+  }
+
+  if (config.documentMode !== 'string') {
+    throw new Error(`Plugin "@mntm/graphql-codegen" requires "documentMode: string"!`);
   }
 };
 
