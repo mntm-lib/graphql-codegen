@@ -1,6 +1,6 @@
 {
   "name": "@mntm/graphql-codegen",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "jsnext:main": "dist/index.js",
@@ -13,8 +13,8 @@
   "description": "Plugin for GraphQL Code Generator",
   "license": "MIT",
   "keywords": [
-    "graphql-client",
     "graphql",
+    "graphql-client",
     "graphql-clients",
     "fetch"
   ],

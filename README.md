@@ -1,8 +1,8 @@
-# @mntm/graphql-codegen [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/maxi-team/graphql/blob/master/LICENSE) [![npm bundle size](https://img.shields.io/bundlephobia/min/@mntm/graphql-codegen)](https://bundlephobia.com/result?p=@mntm/graphql-codegen)
+# @mntm/graphql-codegen [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/maxi-team/graphql/blob/master/LICENSE) ![npm (scoped)](https://img.shields.io/npm/v/@mntm/graphql-codegen)
 
 **Docs:** RU | EN
 
-Plugin for GraphQL Code Generator.
+[graphql-codegen](https://github.com/dotansimha/graphql-code-generator) plugin that generates hooks with TypeScript typings for [@mntm/graphql](https://github.com/maxi-team/graphql).
 
 ## Installation
 

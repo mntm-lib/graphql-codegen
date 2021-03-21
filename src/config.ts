@@ -1,6 +1,6 @@
 import { RawClientSideBasePluginConfig } from '@graphql-codegen/visitor-plugin-common';
 
 /**
- * @description This plugin generates `@mntm/graphql` (https://github.com/FormidableLabs/urql) components and HOC with TypeScript typings.
+ * @description [graphql-codegen](https://github.com/dotansimha/graphql-code-generator) plugin that generates hooks with TypeScript typings for [@mntm/graphql](https://github.com/maxi-team/graphql).
  */
 export type MNTMGraphQLRawPluginConfig = RawClientSideBasePluginConfig;
