@@ -67,14 +67,19 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
       return `
 export const use${operationName} = ${this._pureComment}() => {
   return useLazyQuery<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName});
-};`;
+};
+`;
     }
 
     if (operationType === 'Query') {
       return `
 export const use${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => {
   return useQuery<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName}, variables);
-};`;
+};
+export const useLazy${operationName} = ${this._pureComment}() => {
+  return useLazyQuery<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName});
+};
+`;
     }
 
     throw new Error(`${operationType} is not yet supported`);
