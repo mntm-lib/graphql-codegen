@@ -5,7 +5,12 @@ import type {
 
 import type {
   OperationDefinitionNode,
+  FragmentDefinitionNode,
   GraphQLSchema
+} from 'graphql';
+
+import {
+  print
 } from 'graphql';
 
 import type {
@@ -24,6 +29,10 @@ import {
   default as pascalCase
 } from 'pascalcase';
 
+import {
+  default as optimize
+} from 'gqlmin';
+
 export type MNTMGraphQLPluginConfig = ClientSideBasePluginConfig;
 
 export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPluginConfig, MNTMGraphQLPluginConfig> {
@@ -33,6 +42,20 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
     super(schema, fragments, rawConfig, {});
     autoBind(this);
     this._pureComment = rawConfig.pureMagicComment ? '/*#__PURE__*/' : '';
+  }
+
+  protected _gql(node: FragmentDefinitionNode | OperationDefinitionNode): string {
+    const fragments = this._transformFragments(node);
+
+    let doc = this._prepareDocument(`
+    ${print(node).split('\\').join('\\\\') /* Re-escape escaped values in GraphQL syntax */}
+    ${this._includeFragments(fragments)}`);
+
+    if (this.config.optimizeDocumentNode) {
+      doc = optimize(doc);
+    }
+
+    return '`' + doc + '`';
   }
 
   public getImports(): string[] {
