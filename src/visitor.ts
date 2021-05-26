@@ -1,5 +1,4 @@
 import type {
-  ClientSideBasePluginConfig,
   LoadedFragment
 } from '@graphql-codegen/visitor-plugin-common';
 
@@ -9,16 +8,19 @@ import type {
   GraphQLSchema
 } from 'graphql';
 
+import type {
+  MNTMGraphQLRawPluginConfig,
+  MNTMGraphQLPluginConfig
+} from './config';
+
 import {
   print
 } from 'graphql';
 
-import type {
-  MNTMGraphQLRawPluginConfig
-} from './config';
-
 import {
-  ClientSideBaseVisitor
+  ClientSideBaseVisitor,
+  getConfigValue,
+  OMIT_TYPE
 } from '@graphql-codegen/visitor-plugin-common';
 
 import {
@@ -33,13 +35,14 @@ import {
   default as optimize
 } from 'gqlmin';
 
-export type MNTMGraphQLPluginConfig = ClientSideBasePluginConfig;
-
 export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPluginConfig, MNTMGraphQLPluginConfig> {
-  _pureComment: string;
+  private _pureComment: string;
 
   constructor(schema: GraphQLSchema, fragments: LoadedFragment[], rawConfig: MNTMGraphQLRawPluginConfig) {
-    super(schema, fragments, rawConfig, {});
+    super(schema, fragments, rawConfig, {
+      withHooks: getConfigValue(rawConfig.withHooks, true),
+      withRequests: getConfigValue(rawConfig.withRequests, false)
+    });
     autoBind(this);
     this._pureComment = rawConfig.pureMagicComment ? '/*#__PURE__*/' : '';
   }
@@ -67,9 +70,35 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
       return baseImports;
     }
 
-    imports.push(`import { useQuery, useLazyQuery } from '@mntm/graphql';`);
+    imports.push(OMIT_TYPE);
+
+    const importNames = [];
+
+    if (this.config.withHooks) {
+      importNames.push('useQuery');
+      importNames.push('useLazyQuery');
+    }
+
+    if (this.config.withRequests) {
+      importNames.push('gqlRequest');
+    }
+
+    if (importNames.length !== 0) {
+      imports.push(`import { ${importNames.join(', ')} } from '@mntm/graphql';`);
+    }
 
     return [...baseImports, ...imports];
+  }
+
+  private _resolveType(rawOperationType: string): string {
+    return pascalCase(rawOperationType);
+  }
+
+  private _resolveName(operationType: string, name?: string): string {
+    return this.convertName(name || '', {
+      suffix: this.config.omitOperationSuffix ? '' : operationType,
+      useTypesPrefix: false
+    });
   }
 
   private _buildHooks(
@@ -79,12 +108,8 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
     operationResultType: string,
     operationVariablesTypes: string
   ): string {
-    const operationType = pascalCase(rawOperationType);
-
-    const operationName: string = this.convertName(node.name?.value ?? '', {
-      suffix: this.config.omitOperationSuffix ? '' : operationType,
-      useTypesPrefix: false
-    });
+    const operationType = this._resolveType(rawOperationType);
+    const operationName = this._resolveName(operationType, node.name?.value);
 
     if (operationType === 'Mutation') {
       return `
@@ -108,6 +133,27 @@ export const useLazy${operationName} = ${this._pureComment}() => {
     throw new Error(`${operationType} is not yet supported`);
   }
 
+  private _buildRequests(
+    node: OperationDefinitionNode,
+    rawOperationType: string,
+    documentVariableName: string,
+    operationResultType: string,
+    operationVariablesTypes: string
+  ): string {
+    const operationType = this._resolveType(rawOperationType);
+    const operationName = this._resolveName(operationType, node.name?.value);
+
+    if (operationType === 'Mutation' || operationType === 'Query') {
+      return `
+export const request${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => {
+  return gqlRequest<${operationResultType}>(${documentVariableName}, variables);
+};
+`;
+    }
+
+    throw new Error(`${operationType} is not yet supported`);
+  }
+
   protected buildOperation(
     node: OperationDefinitionNode,
     documentVariableName: string,
@@ -115,6 +161,16 @@ export const useLazy${operationName} = ${this._pureComment}() => {
     operationResultType: string,
     operationVariablesTypes: string
   ): string {
-    return this._buildHooks(node, operationType, documentVariableName, operationResultType, operationVariablesTypes);
+    let operation = '';
+
+    operation += this.config.withHooks ?
+      this._buildHooks(node, operationType, documentVariableName, operationResultType, operationVariablesTypes) :
+      '';
+
+    operation += this.config.withRequests ?
+      this._buildRequests(node, operationType, documentVariableName, operationResultType, operationVariablesTypes) :
+      '';
+
+    return operation;
   }
 }
