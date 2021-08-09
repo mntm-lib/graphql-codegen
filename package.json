@@ -1,10 +1,11 @@
 {
   "name": "@mntm/graphql-codegen",
-  "version": "2.1.0",
-  "main": "dist/index.js",
-  "module": "dist/index.js",
-  "jsnext:main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "version": "3.0.0",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "jsnext:main": "./dist/index.js",
+  "exports": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "author": {
     "name": "Anton Petrov",
     "email": "im@petrov.engineer",
@@ -29,25 +30,25 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@graphql-codegen/plugin-helpers": "^1.18.7",
-    "@graphql-codegen/visitor-plugin-common": "^1.21.0",
+    "@graphql-codegen/plugin-helpers": "^2.0.0",
+    "@graphql-codegen/visitor-plugin-common": "^2.0.0",
     "auto-bind": "~4.0.0",
     "gqlmin": "^0.1.1",
     "pascalcase": "^1.0.0",
-    "tslib": "~2.2.0"
+    "tslib": "^2.3.0"
   },
   "devDependencies": {
     "@mntm/eslint-config": "^0.2.0",
-    "@types/node": "^15.12.2",
+    "@types/node": "^16.4.13",
     "@types/pascalcase": "^1.0.0",
-    "eslint": "^7.28.0",
-    "graphql": "^15.5.0",
+    "eslint": "^7.32.0",
+    "graphql": "^15.5.1",
     "shx": "^0.3.3",
-    "typescript": "^4.3.2"
+    "typescript": "^4.3.5"
   },
   "peerDependencies": {
-    "@mntm/graphql": "^3.0.0",
-    "graphql": "^15.5.0"
+    "@mntm/graphql": "^4.0.0",
+    "graphql": "^15.5.1"
   },
   "peerDependenciesMeta": {
     "@mntm/graphql": {
