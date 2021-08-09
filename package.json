@@ -1,6 +1,6 @@
 {
   "name": "@mntm/graphql-codegen",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "jsnext:main": "./dist/index.js",
@@ -47,7 +47,7 @@
     "typescript": "^4.3.5"
   },
   "peerDependencies": {
-    "@mntm/graphql": "^4.0.0",
+    "@mntm/graphql": "^4.0.1",
     "graphql": "^15.5.1"
   },
   "peerDependenciesMeta": {
