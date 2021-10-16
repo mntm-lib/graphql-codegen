@@ -3,24 +3,24 @@ import type {
 } from '@graphql-codegen/visitor-plugin-common';
 
 import type {
-  OperationDefinitionNode,
   FragmentDefinitionNode,
-  GraphQLSchema
+  GraphQLSchema,
+  OperationDefinitionNode
 } from 'graphql';
 
 import type {
-  MNTMGraphQLRawPluginConfig,
-  MNTMGraphQLPluginConfig
+  MNTMGraphQLPluginConfig,
+  MNTMGraphQLRawPluginConfig
 } from './config';
 
 import {
-  print
+  print,
+  stripIgnoredCharacters
 } from 'graphql';
 
 import {
   ClientSideBaseVisitor,
-  getConfigValue,
-  OMIT_TYPE
+  getConfigValue
 } from '@graphql-codegen/visitor-plugin-common';
 
 import {
@@ -28,51 +28,58 @@ import {
 } from 'auto-bind';
 
 import {
-  default as pascalCase
-} from 'pascalcase';
-
-import {
-  default as optimize
-} from 'gqlmin';
+  pascalCase
+} from 'change-case-all';
 
 export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPluginConfig, MNTMGraphQLPluginConfig> {
-  private _pureComment: string;
+  private readonly _pureComment: string;
 
-  constructor(schema: GraphQLSchema, fragments: LoadedFragment[], rawConfig: MNTMGraphQLRawPluginConfig) {
+  public constructor(schema: GraphQLSchema, fragments: LoadedFragment[], rawConfig: MNTMGraphQLRawPluginConfig) {
     super(schema, fragments, rawConfig, {
       withHooks: getConfigValue(rawConfig.withHooks, true),
       withRequests: getConfigValue(rawConfig.withRequests, false)
     });
+
     autoBind(this);
+
     this._pureComment = rawConfig.pureMagicComment ? '/*#__PURE__*/' : '';
   }
 
   protected _gql(node: FragmentDefinitionNode | OperationDefinitionNode): string {
     const fragments = this._transformFragments(node);
 
-    let doc = this._prepareDocument(`
-    ${print(node).split('\\').join('\\\\') /* Re-escape escaped values in GraphQL syntax */}
-    ${this._includeFragments(fragments)}`);
+    let doc = print(node);
+
+    // Fix escaped
+    doc = doc.replace(/\\\\/g, '\\\\');
 
     if (this.config.optimizeDocumentNode) {
-      doc = optimize(doc);
+      // Specification minify
+      doc = stripIgnoredCharacters(doc);
+
+      // Fix unnecessary space around doc
+      doc = doc.trim();
     }
 
-    return '`' + doc + '`';
+    // Add fragments
+    doc += this._includeFragments(fragments, node.kind);
+
+    // Finalize
+    doc = this._prepareDocument(doc);
+
+    return `\`${doc}\``;
   }
 
   public getImports(): string[] {
-    const baseImports = super.getImports();
-    const imports = [];
+    const imports = super.getImports();
+
     const hasOperations = this._collectedOperations.length > 0;
 
     if (!hasOperations) {
-      return baseImports;
+      return imports;
     }
 
-    imports.push(OMIT_TYPE);
-
-    const importNames = [];
+    const importNames: string[] = [];
 
     if (this.config.withHooks) {
       importNames.push('useQuery');
@@ -83,11 +90,11 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
       importNames.push('gqlRequest');
     }
 
-    if (importNames.length !== 0) {
+    if (importNames.length > 0) {
       imports.push(`import { ${importNames.join(', ')} } from '@mntm/graphql';`);
     }
 
-    return [...baseImports, ...imports];
+    return imports;
   }
 
   private _resolveType(rawOperationType: string): string {
@@ -163,13 +170,13 @@ export const request${operationName} = ${this._pureComment}(variables: ${operati
   ): string {
     let operation = '';
 
-    operation += this.config.withHooks ?
-      this._buildHooks(node, operationType, documentVariableName, operationResultType, operationVariablesTypes) :
-      '';
+    if (this.config.withHooks) {
+      operation += this._buildHooks(node, operationType, documentVariableName, operationResultType, operationVariablesTypes);
+    }
 
-    operation += this.config.withRequests ?
-      this._buildRequests(node, operationType, documentVariableName, operationResultType, operationVariablesTypes) :
-      '';
+    if (this.config.withRequests) {
+      operation += this._buildRequests(node, operationType, documentVariableName, operationResultType, operationVariablesTypes);
+    }
 
     return operation;
   }

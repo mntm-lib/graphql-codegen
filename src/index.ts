@@ -1,7 +1,7 @@
 import type {
-  Types,
+  PluginFunction,
   PluginValidateFn,
-  PluginFunction
+  Types
 } from '@graphql-codegen/plugin-helpers';
 
 import type {
@@ -9,15 +9,15 @@ import type {
 } from '@graphql-codegen/visitor-plugin-common';
 
 import type {
-  GraphQLSchema,
+  DocumentNode,
   FragmentDefinitionNode,
-  DocumentNode
+  GraphQLSchema
 } from 'graphql';
 
 import {
   Kind,
-  visit,
-  concatAST
+  concatAST,
+  visit
 } from 'graphql';
 
 import type {
@@ -37,20 +37,20 @@ export const plugin: PluginFunction<MNTMGraphQLRawPluginConfig, Types.ComplexPlu
   documents: Types.DocumentFile[],
   config: MNTMGraphQLRawPluginConfig
 ) => {
-  const allAst = concatAST(documents.map(v => v.document).filter((d): d is DocumentNode => !!d));
+  const allAst = concatAST(documents.map((v) => v.document).filter((d): d is DocumentNode => !!d));
   const allFragments: LoadedFragment[] = [
-    ...(allAst.definitions.filter(d => d.kind === Kind.FRAGMENT_DEFINITION) as FragmentDefinitionNode[]).map(
-      fragmentDef => ({
+    ...(allAst.definitions.filter((d) => d.kind === Kind.FRAGMENT_DEFINITION) as FragmentDefinitionNode[]).map(
+      (fragmentDef) => ({
         node: fragmentDef,
         name: fragmentDef.name.value,
         onType: fragmentDef.typeCondition.name.value,
         isExternal: false
       })
     ),
-    ...(config.externalFragments || [])
+    ...config.externalFragments || []
   ];
 
-  const visitor = new MNTMGraphQLVisitor(schema, allFragments, config) as any;
+  const visitor = new MNTMGraphQLVisitor(schema, allFragments, config);
   const visitorResult = visit(allAst, { leave: visitor });
 
   return {
@@ -66,6 +66,7 @@ export const validate: PluginValidateFn = async (
   outputFile: string
 ) => {
   const ext = extname(outputFile);
+
   if (ext !== '.ts' && ext !== '.tsx') {
     throw new Error(`Plugin "@mntm/graphql-codegen" requires extension to be ".ts" or ".tsx"!`);
   }

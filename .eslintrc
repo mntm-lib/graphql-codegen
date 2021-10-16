@@ -3,5 +3,9 @@
   "parserOptions": {
     "project": "./tsconfig.json",
     "tsconfigRootDir": "."
+  },
+  "rules": {
+    "class-methods-use-this": "off",
+    "unicorn/prefer-string-replace-all": "off"
   }
 }
