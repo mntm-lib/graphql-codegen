@@ -37,7 +37,8 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
   public constructor(schema: GraphQLSchema, fragments: LoadedFragment[], rawConfig: MNTMGraphQLRawPluginConfig) {
     super(schema, fragments, rawConfig, {
       withHooks: getConfigValue(rawConfig.withHooks, true),
-      withRequests: getConfigValue(rawConfig.withRequests, false)
+      withRequests: getConfigValue(rawConfig.withRequests, false),
+      withSWR: getConfigValue(rawConfig.withSWR, false)
     });
 
     autoBind(this);
@@ -86,7 +87,7 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
       importNames.push('useLazyQuery');
     }
 
-    if (this.config.withRequests) {
+    if (this.config.withRequests || this.config.withSWR) {
       importNames.push('gqlRequest');
     }
 
@@ -94,12 +95,27 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
       imports.push(`import { ${importNames.join(', ')} } from '@mntm/graphql';`);
     }
 
+    if (this.config.withSWR) {
+      imports.push(`import type { BareFetcher, SWRConfiguration, SWRResponse } from 'swr';`);
+      imports.push(`import { default as useSWR } from 'swr';`);
+      imports.push(`type SWRMutationResponse<D, E, V> = Omit<SWRResponse<D, E>, 'data'> & {
+        data: D | null;
+        dispatch: (variables?: V) => Promise<D>;
+      };`);
+      imports.push(`const SWRMutationConfig = {
+        revalidateIfStale: false,
+        revalidateOnFocus: false,
+        revalidateOnMount: false,
+        revalidateOnReconnect: false,
+        fallbackData: null,
+        compare: () => false
+      } as const;`);
+    }
+
     return imports;
   }
 
-  private _resolveType(rawOperationType: string): string {
-    return pascalCase(rawOperationType);
-  }
+  private readonly _resolveType = pascalCase;
 
   private _resolveName(operationType: string, name?: string): string {
     return this.convertName(name || '', {
@@ -161,6 +177,47 @@ export const request${operationName} = ${this._pureComment}(variables: ${operati
     throw new Error(`${operationType} is not yet supported`);
   }
 
+  private _buildSWR(
+    node: OperationDefinitionNode,
+    rawOperationType: string,
+    documentVariableName: string,
+    operationResultType: string,
+    operationVariablesTypes: string
+  ): string {
+    const operationType = this._resolveType(rawOperationType);
+    const operationName = this._resolveName(operationType, node.name?.value);
+
+    if (operationType === 'Query') {
+      return `
+const fetch${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => {
+  return gqlRequest<${operationResultType}>(${documentVariableName}, variables);
+};
+export const useSWR${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}, config: Partial<SWRConfiguration<${operationResultType}, Error, BareFetcher<${operationResultType}>>> = {}) => {
+  return useSWR<${operationResultType}, Error>(variables, fetch${operationName}, config);
+};
+`;
+    }
+
+    if (operationType === 'Mutation') {
+      return `
+const fetch${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => {
+  return gqlRequest<${operationResultType}>(${documentVariableName}, variables);
+};
+export const useSWR${operationName} = ${this._pureComment}(config: Partial<SWRConfiguration<${operationResultType}, Error, BareFetcher<${operationResultType}>>> = {}) => {
+  const swr = useSWR<${operationResultType} | null, Error>({}, fetch${operationName}, Object.assign({}, SWRMutationConfig, config));
+  const dispatch = (variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => swr.mutate(fetch${operationName}(variables), true);
+  Object.defineProperty(swr, 'dispatch', {
+    enumerable: true,
+    value: dispatch
+  });
+  return swr as SWRMutationResponse<${operationResultType}, Error, ${operationVariablesTypes}>;
+};
+`;
+    }
+
+    throw new Error(`${operationType} is not yet supported`);
+  }
+
   protected buildOperation(
     node: OperationDefinitionNode,
     documentVariableName: string,
@@ -171,11 +228,33 @@ export const request${operationName} = ${this._pureComment}(variables: ${operati
     let operation = '';
 
     if (this.config.withHooks) {
-      operation += this._buildHooks(node, operationType, documentVariableName, operationResultType, operationVariablesTypes);
+      operation += this._buildHooks(
+        node,
+        operationType,
+        documentVariableName,
+        operationResultType,
+        operationVariablesTypes
+      );
     }
 
     if (this.config.withRequests) {
-      operation += this._buildRequests(node, operationType, documentVariableName, operationResultType, operationVariablesTypes);
+      operation += this._buildRequests(
+        node,
+        operationType,
+        documentVariableName,
+        operationResultType,
+        operationVariablesTypes
+      );
+    }
+
+    if (this.config.withSWR) {
+      operation += this._buildSWR(
+        node,
+        operationType,
+        documentVariableName,
+        operationResultType,
+        operationVariablesTypes
+      );
     }
 
     return operation;

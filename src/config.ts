@@ -17,9 +17,15 @@ export type MNTMGraphQLRawPluginConfig = {
    * @default true
    */
   withHooks?: boolean;
+  /**
+   * @description Customized the output by enabling/disabling the generated useSWR Hooks.
+   * @default true
+   */
+  withSWR?: boolean;
 } & RawClientSideBasePluginConfig;
 
 export type MNTMGraphQLPluginConfig = {
   withRequests: boolean;
   withHooks: boolean;
+  withSWR: boolean;
 } & ClientSideBasePluginConfig;

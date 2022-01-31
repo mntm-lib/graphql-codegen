@@ -15,9 +15,12 @@ import type {
 } from 'graphql';
 
 import {
+  oldVisit
+} from '@graphql-codegen/plugin-helpers';
+
+import {
   Kind,
-  concatAST,
-  visit
+  concatAST
 } from 'graphql';
 
 import type {
@@ -51,7 +54,7 @@ export const plugin: PluginFunction<MNTMGraphQLRawPluginConfig, Types.ComplexPlu
   ];
 
   const visitor = new MNTMGraphQLVisitor(schema, allFragments, config);
-  const visitorResult = visit(allAst, { leave: visitor });
+  const visitorResult = oldVisit(allAst, { leave: visitor });
 
   return {
     prepend: visitor.getImports(),
@@ -76,4 +79,5 @@ export const validate: PluginValidateFn = async (
   }
 };
 
-export { MNTMGraphQLVisitor };
+// eslint-disable-next-line @typescript-eslint/no-duplicate-imports
+export { MNTMGraphQLVisitor } from './visitor';
