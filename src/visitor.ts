@@ -99,17 +99,17 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
       imports.push(`import type { BareFetcher, SWRConfiguration, SWRResponse } from 'swr';`);
       imports.push(`import { default as useSWR } from 'swr';`);
       imports.push(`type SWRMutationResponse<D, E, V> = Omit<SWRResponse<D, E>, 'data'> & {
-        data: D | null;
-        dispatch: (variables?: V) => Promise<D>;
-      };`);
+  data: D | null;
+  dispatch: (variables?: V) => Promise<D>;
+};`);
       imports.push(`const SWRMutationConfig = {
-        revalidateIfStale: false,
-        revalidateOnFocus: false,
-        revalidateOnMount: false,
-        revalidateOnReconnect: false,
-        fallbackData: null,
-        compare: () => false
-      } as const;`);
+  revalidateIfStale: false,
+  revalidateOnFocus: false,
+  revalidateOnMount: false,
+  revalidateOnReconnect: false,
+  fallbackData: null,
+  compare: () => false
+} as const;`);
     }
 
     return imports;
