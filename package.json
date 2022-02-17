@@ -1,6 +1,6 @@
 {
   "name": "@mntm/graphql-codegen",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "type": "commonjs",
   "main": "./dist/index.js",
   "exports": "./dist/index.js",

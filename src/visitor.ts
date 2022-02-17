@@ -98,18 +98,26 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
     if (this.config.withSWR) {
       imports.push(`import type { BareFetcher, SWRConfiguration, SWRResponse } from 'swr';`);
       imports.push(`import { default as useSWR } from 'swr';`);
-      imports.push(`type SWRMutationResponse<D, E, V> = Omit<SWRResponse<D, E>, 'data'> & {
+      imports.push(`type SWRDispatchResponse<D, E, V> = Omit<SWRResponse<D, E>, 'data'> & {
   data: D | null;
   dispatch: (variables?: V) => Promise<D>;
 };`);
-      imports.push(`const SWRMutationConfig = {
+      imports.push(`const unstable_SWRDispatchCompare = ${this._pureComment}() => false;`);
+      imports.push(`const unstable_SWRDispatchConfig = {
   revalidateIfStale: false,
   revalidateOnFocus: false,
   revalidateOnMount: false,
   revalidateOnReconnect: false,
   fallbackData: null,
-  compare: () => false
+  compare: unstable_SWRDispatchCompare
 } as const;`);
+      imports.push(`const unstable_useSWRDispatch = ${this._pureComment}<M, V>(bare: BareFetcher<M>, config: Partial<SWRConfiguration<M, Error, BareFetcher<M>>> = {}) => {
+  const swr = useSWR<M, Error>({}, bare, Object.assign({}, unstable_SWRDispatchConfig, config)) as SWRDispatchResponse<M, Error, V>;
+
+  swr.dispatch = async (variables: V = {} as V) => swr.mutate(bare(variables)) as Promise<M>;
+
+  return swr;
+};`);
     }
 
     return imports;
@@ -204,13 +212,7 @@ const fetch${operationName} = ${this._pureComment}(variables: ${operationVariabl
   return gqlRequest<${operationResultType}>(${documentVariableName}, variables);
 };
 export const useSWR${operationName} = ${this._pureComment}(config: Partial<SWRConfiguration<${operationResultType}, Error, BareFetcher<${operationResultType}>>> = {}) => {
-  const swr = useSWR<${operationResultType} | null, Error>({}, fetch${operationName}, Object.assign({}, SWRMutationConfig, config));
-  const dispatch = (variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => swr.mutate(fetch${operationName}(variables), true);
-  Object.defineProperty(swr, 'dispatch', {
-    enumerable: true,
-    value: dispatch
-  });
-  return swr as SWRMutationResponse<${operationResultType}, Error, ${operationVariablesTypes}>;
+  return unstable_useSWRDispatch<${operationResultType}, ${operationVariablesTypes}>(fetch${operationName}, config);
 };
 `;
     }
