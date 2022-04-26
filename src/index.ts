@@ -77,6 +77,14 @@ export const validate: PluginValidateFn = async (
   if (config.documentMode !== 'string') {
     throw new Error(`Plugin "@mntm/graphql-codegen" requires "documentMode: string"!`);
   }
+
+  if (!config.optimizeDocumentNode) {
+    console.warn('It is recommended to enable "optimizeDocumentNode".');
+  }
+
+  if (!config.pureMagicComment) {
+    console.warn('It is recommended to enable "pureMagicComment".');
+  }
 };
 
 // eslint-disable-next-line @typescript-eslint/no-duplicate-imports

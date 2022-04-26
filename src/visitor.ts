@@ -31,6 +31,8 @@ import {
   pascalCase
 } from 'change-case-all';
 
+const EMPTY = '';
+
 export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPluginConfig, MNTMGraphQLPluginConfig> {
   private readonly _pureComment: string;
 
@@ -43,7 +45,7 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
 
     autoBind(this);
 
-    this._pureComment = rawConfig.pureMagicComment ? '/*#__PURE__*/' : '';
+    this._pureComment = rawConfig.pureMagicComment ? '/*#__PURE__*/' : EMPTY;
   }
 
   protected _gql(node: FragmentDefinitionNode | OperationDefinitionNode): string {
@@ -80,44 +82,31 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
       return imports;
     }
 
-    const importNames: string[] = [];
+    if (this.config.withHooks || this.config.withSWR) {
+      imports.push(`
+import type { BareFetcher, SWRConfiguration } from 'swr';
+import type { SWRMutationConfiguration } from 'swr/mutation';
+import type { GraphQLVariables, GraphQLError } from '@mntm/graphql-request';
 
-    if (this.config.withHooks) {
-      importNames.push('useQuery');
-      importNames.push('useLazyQuery');
-    }
+import { default as useSWR } from 'swr';
+import { default as useSWRMutation } from 'swr/mutation';
+import { gqlRequest } from '@mntm/graphql-request';
 
-    if (this.config.withRequests || this.config.withSWR) {
-      importNames.push('gqlRequest');
-    }
+type IFetcherOptions = {
+  n: string;
+  v: GraphQLVariables;
+};
 
-    if (importNames.length > 0) {
-      imports.push(`import { ${importNames.join(', ')} } from '@mntm/graphql';`);
-    }
+type ITriggerOptions<T> = {
+  arg: T;
+};
 
-    if (this.config.withSWR) {
-      imports.push(`import type { BareFetcher, SWRConfiguration, SWRResponse } from 'swr';`);
-      imports.push(`import { default as useSWR } from 'swr';`);
-      imports.push(`type SWRDispatchResponse<D, E, V> = Omit<SWRResponse<D, E>, 'data'> & {
-  data: D | null;
-  dispatch: (variables?: V) => Promise<D>;
-};`);
-      imports.push(`const unstable_SWRDispatchCompare = ${this._pureComment}() => false;`);
-      imports.push(`const unstable_SWRDispatchConfig = {
-  revalidateIfStale: false,
-  revalidateOnFocus: false,
-  revalidateOnMount: false,
-  revalidateOnReconnect: false,
-  fallbackData: null,
-  compare: unstable_SWRDispatchCompare
-} as const;`);
-      imports.push(`const unstable_useSWRDispatch = ${this._pureComment}<M, V>(bare: BareFetcher<M>, config: Partial<SWRConfiguration<M, Error, BareFetcher<M>>> = {}) => {
-  const swr = useSWR<M, Error>({}, bare, Object.assign({}, unstable_SWRDispatchConfig, config)) as SWRDispatchResponse<M, Error, V>;
-
-  swr.dispatch = async (variables: V = {} as V) => swr.mutate(bare(variables)) as Promise<M>;
-
-  return swr;
-};`);
+const fetcher = ${this._pureComment}<T>(query: string, options: IFetcherOptions) => gqlRequest<T>(query, options.v, options.n);
+`);
+    } else if (this.config.withRequests) {
+      imports.push(`
+import { gqlRequest } from '@mntm/graphql-request';
+`);
     }
 
     return imports;
@@ -125,43 +114,11 @@ export class MNTMGraphQLVisitor extends ClientSideBaseVisitor<MNTMGraphQLRawPlug
 
   private readonly _resolveType = pascalCase;
 
-  private _resolveName(operationType: string, name?: string): string {
-    return this.convertName(name || '', {
+  private _resolveName(operationType: string, name: string): string {
+    return this.convertName(name, {
       suffix: this.config.omitOperationSuffix ? '' : operationType,
       useTypesPrefix: false
     });
-  }
-
-  private _buildHooks(
-    node: OperationDefinitionNode,
-    rawOperationType: string,
-    documentVariableName: string,
-    operationResultType: string,
-    operationVariablesTypes: string
-  ): string {
-    const operationType = this._resolveType(rawOperationType);
-    const operationName = this._resolveName(operationType, node.name?.value);
-
-    if (operationType === 'Mutation') {
-      return `
-export const use${operationName} = ${this._pureComment}() => {
-  return useLazyQuery<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName});
-};
-`;
-    }
-
-    if (operationType === 'Query') {
-      return `
-export const use${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => {
-  return useQuery<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName}, variables);
-};
-export const useLazy${operationName} = ${this._pureComment}() => {
-  return useLazyQuery<${operationResultType}, ${operationVariablesTypes}>(${documentVariableName});
-};
-`;
-    }
-
-    throw new Error(`${operationType} is not yet supported`);
   }
 
   private _buildRequests(
@@ -171,13 +128,19 @@ export const useLazy${operationName} = ${this._pureComment}() => {
     operationResultType: string,
     operationVariablesTypes: string
   ): string {
+    const name = (node.name && node.name.value) || EMPTY;
+
+    if (name === EMPTY) {
+      return EMPTY;
+    }
+
     const operationType = this._resolveType(rawOperationType);
-    const operationName = this._resolveName(operationType, node.name?.value);
+    const operationName = this._resolveName(operationType, name);
 
     if (operationType === 'Mutation' || operationType === 'Query') {
       return `
 export const request${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => {
-  return gqlRequest<${operationResultType}>(${documentVariableName}, variables);
+  return gqlRequest<${operationResultType}>(${documentVariableName}, variables, ${name});
 };
 `;
     }
@@ -185,34 +148,38 @@ export const request${operationName} = ${this._pureComment}(variables: ${operati
     throw new Error(`${operationType} is not yet supported`);
   }
 
-  private _buildSWR(
+  private _buildHooks(
     node: OperationDefinitionNode,
     rawOperationType: string,
     documentVariableName: string,
     operationResultType: string,
     operationVariablesTypes: string
   ): string {
+    const name = (node.name && node.name.value) || EMPTY;
+
+    if (name === EMPTY) {
+      return EMPTY;
+    }
+
     const operationType = this._resolveType(rawOperationType);
-    const operationName = this._resolveName(operationType, node.name?.value);
+    const operationName = this._resolveName(operationType, name);
 
     if (operationType === 'Query') {
       return `
-const fetch${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => {
-  return gqlRequest<${operationResultType}>(${documentVariableName}, variables);
-};
-export const useSWR${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}, config: Partial<SWRConfiguration<${operationResultType}, Error, BareFetcher<${operationResultType}>>> = {}) => {
-  return useSWR<${operationResultType}, Error>(variables, fetch${operationName}, config);
+const fetch${operationName} = (options: IFetcherOptions) => fetcher<${operationResultType}>(${documentVariableName}, options);
+
+export const use${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}, config: Partial<SWRConfiguration<${operationResultType}, GraphQLError[], BareFetcher<${operationResultType}>>> = {}) => {
+  return useSWR<${operationResultType}, GraphQLError[], IFetcherOptions>({ n: '${name}', v: variables }, fetch${operationName}, config);
 };
 `;
     }
 
     if (operationType === 'Mutation') {
       return `
-const fetch${operationName} = ${this._pureComment}(variables: ${operationVariablesTypes} = {} as ${operationVariablesTypes}) => {
-  return gqlRequest<${operationResultType}>(${documentVariableName}, variables);
-};
-export const useSWR${operationName} = ${this._pureComment}(config: Partial<SWRConfiguration<${operationResultType}, Error, BareFetcher<${operationResultType}>>> = {}) => {
-  return unstable_useSWRDispatch<${operationResultType}, ${operationVariablesTypes}>(fetch${operationName}, config);
+const trigger${operationName} = (name: string, options: ITriggerOptions<${operationVariablesTypes}>) => fetcher<${operationResultType}>(${documentVariableName}, { n: name, v: options.arg });
+
+export const use${operationName} = ${this._pureComment}(config: Partial<SWRMutationConfiguration<${operationResultType}, GraphQLError[], ${operationVariablesTypes}, string>> = {}) => {
+  return useSWRMutation<${operationResultType}, GraphQLError[], string, ${operationVariablesTypes}>('${name}', trigger${operationName}, config);
 };
 `;
     }
@@ -229,16 +196,6 @@ export const useSWR${operationName} = ${this._pureComment}(config: Partial<SWRCo
   ): string {
     let operation = '';
 
-    if (this.config.withHooks) {
-      operation += this._buildHooks(
-        node,
-        operationType,
-        documentVariableName,
-        operationResultType,
-        operationVariablesTypes
-      );
-    }
-
     if (this.config.withRequests) {
       operation += this._buildRequests(
         node,
@@ -249,8 +206,8 @@ export const useSWR${operationName} = ${this._pureComment}(config: Partial<SWRCo
       );
     }
 
-    if (this.config.withSWR) {
-      operation += this._buildSWR(
+    if (this.config.withHooks || this.config.withSWR) {
+      operation += this._buildHooks(
         node,
         operationType,
         documentVariableName,
